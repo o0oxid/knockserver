@@ -28,7 +28,7 @@ public class Hub implements Chat {
     }
 
     @Override
-    public void post(Chattable member, String message){
+    public void post(String message){
         this.message = message;
         broadCastMessage();
     }

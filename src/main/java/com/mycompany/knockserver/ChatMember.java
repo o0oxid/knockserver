@@ -30,7 +30,7 @@ public class ChatMember implements Chattable {
             String inputLine;
             try {
                 while ((inputLine = in.readLine()) != null) {
-                    chat.post(ChatMember.this, inputLine);
+                    chat.post(inputLine);
                     Thread.sleep(300);
                 }
             } catch(IOException e) {
