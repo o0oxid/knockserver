@@ -2,23 +2,24 @@ package com.mycompany.knockserver;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.util.ArrayList;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.net.Socket;
 
 /**
  * Created by okhoruzhenko on 3/15/17.
  */
 public class ChatMember implements Chattable {
-    BufferedReader in;
-    PrintWriter out;
-    Chat chat;
-    ArrayList<String> messages;
+    private Chat chat;
+    private ConcurrentLinkedQueue<String> messages;
+    private String inputLine;
+    private Socket incomingConnection;
 
-    public ChatMember(BufferedReader in, PrintWriter out, Chat chat) {
-        this.in = in;
-        this.out = out;
+    public ChatMember(Socket incomingConnection, Chat chat) {
+        this.incomingConnection = incomingConnection;
         this.chat = chat;
-        messages = new ArrayList<>();
+        messages = new ConcurrentLinkedQueue<>();
         InputReader inputReader = new InputReader();
         OutputWriter outputWriter = new OutputWriter();
         new Thread(inputReader).start();
@@ -26,10 +27,14 @@ public class ChatMember implements Chattable {
     }
 
     class InputReader implements Runnable {
+        @Override
         public void run() {
-            String inputLine;
-            try {
+            try(BufferedReader in = new BufferedReader(new InputStreamReader(incomingConnection.getInputStream()))) {
                 while ((inputLine = in.readLine()) != null) {
+                    if (inputLine.equals("bye")) {
+                        incomingConnection.close();
+                        break;
+                    }
                     chat.post(inputLine);
                     Thread.sleep(300);
                 }
@@ -39,25 +44,26 @@ public class ChatMember implements Chattable {
     }
 
     class OutputWriter implements Runnable {
+        @Override
         public void run() {
-            try {
+            try( PrintWriter out = new PrintWriter(incomingConnection.getOutputStream(), true)) {
                 while (true) {
-                    if (messages.size() == 0 ) {
+                    if (messages.isEmpty() ) {
                         Thread.sleep(300);
                     } else {
-                        String m = messages.get(0);
-                        out.println(m);
-                        synchronized (messages) {
-                            messages.remove(m);
-                        }
+                        out.println(messages.poll());
                     }
                 }
             } catch (InterruptedException e) {}
+            catch (IOException e) {}
         }
     }
 
-    public synchronized void receive(String message) {
-        messages.add(message);
+
+    public void receive(String message) {
+        if (message != inputLine ) {
+            messages.add(message);
+        }
     }
 
 

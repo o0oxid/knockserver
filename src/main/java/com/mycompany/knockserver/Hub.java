@@ -1,46 +1,49 @@
 package com.mycompany.knockserver;
 
-import java.io.BufferedReader;
+
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Created by okhoruzhenko on 3/13/17.
  */
 public class Hub implements Chat {
 
-    ArrayList<Chattable> members;
-    ServerSocket serverSocket;
-    String message;
-    int port;
+    private ArrayList<Chattable> members;
+    private ServerSocket serverSocket;
+    private ConcurrentLinkedQueue<String> messages;
+    private int port;
     public Hub(int port) {
         this.port = port;
+        messages = new ConcurrentLinkedQueue<>();
         members = new ArrayList<>();
     }
 
     @Override
     public void broadCastMessage(){
-        members.forEach(member -> member.receive(this.message));
+        String m;
+        while ((m = messages.poll()) != null) {
+            for (Chattable member: members) {member.receive(m);}
+        }
     }
 
     @Override
     public void post(String message){
-        this.message = message;
+        messages.add(message);
         broadCastMessage();
     }
+
 
     public void run() {
         try {
             serverSocket = new ServerSocket(port);
             while (true) {
                 Socket incomingConnection = serverSocket.accept();
-                PrintWriter out = new PrintWriter(incomingConnection.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(incomingConnection.getInputStream()));
-                members.add(new ChatMember(in, out, this));
+                members.add(new ChatMember(incomingConnection, this));
             }
 
         } catch(IOException e) {}
